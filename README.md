@@ -2,7 +2,7 @@
 
 **An immutable, memo-tagged USDC revenue splitter on [Arc](https://arc.io) — smart contract + web app.** Set the recipients and their shares *once* at deploy; after that, push any payment through and it's split instantly, every time, by a ratio nobody can change.
 
-This repo contains the Solidity contract (`SplitStream.sol`) and a static web app that drives it.
+This repo contains the Solidity contract (`SplitStream.sol`) and a static web app that drives it. **Live on Arc mainnet** — see [Deployments](#deployments).
 
 ## What it is
 
@@ -67,7 +67,7 @@ export const APP_CONFIG = {
 
 The USDC and Memo addresses are identical on both networks, so they aren't configurable.
 
-To point at mainnet: change `chainId` to `5042`, set `splitStream` to your mainnet deployment, and set `deployBlock` to its deployment block (or `0` if unknown). **The testnet contract does not exist on mainnet — you must deploy SplitStream there first, with the real recipients.** Recipients and shares are fixed at deploy.
+To point at **mainnet**, use `chainId` `5042`, `splitStream` `0x655DF09404861Db30f9BaE091eD91c6bB3Ee932C` (the live deployment), and `deployBlock` `28260139`. These are the values the production app uses, supplied at build time via the `VITE_` variables below. (A testnet contract does not exist on mainnet — to run your own, deploy SplitStream there first with your real recipients.) Recipients and shares are fixed at deploy.
 
 The same three values can instead be supplied at build time (see `.env.example`): `VITE_CHAIN_ID`, `VITE_SPLITSTREAM_ADDRESS`, `VITE_DEPLOY_BLOCK`. When set, they override `appConfig.ts`. These are public values — **never put secrets in `VITE_` variables; they are bundled into the site.**
 
@@ -90,21 +90,22 @@ The same three values can instead be supplied at build time (see `.env.example`)
 
 | Network | Chain ID | Contract |
 | --- | --- | --- |
-| Arc Testnet | `5042002` | `0x04ffda3829210d9314076f6a97a4d001d5424d55` |
-| Arc Mainnet | `5042` | _coming_ |
+| **Arc Mainnet** | `5042` | [`0x655DF09404861Db30f9BaE091eD91c6bB3Ee932C`](https://explorer.arc.io/address/0x655DF09404861Db30f9BaE091eD91c6bB3Ee932C) — source verified |
+| Arc Testnet | `5042002` | [`0x04ffda3829210d9314076f6a97a4d001d5424d55`](https://explorer.testnet.arc.io/address/0x04ffda3829210d9314076f6a97a4d001d5424d55) |
 
 USDC ERC-20 `0x3600000000000000000000000000000000000000` and Memo `0x5294E9927c3306DcBaDb03fe70b92e01cCede505` are identical on both networks.
 
-## Proven on testnet
+## Proven on-chain
 
-- **Direct split** — 3 recipients paid, 1 blocklisted recipient safely credited (not reverted): [`0x5b85…cdddb`](https://explorer.testnet.arc.io/tx/0x5b8527d1d399039b7509502df1b642461adc50b8ae384b7ce6fed0f5a03cdddb)
-- **Memo-wrapped split** — on-chain memo emitted, caller preserved as `msg.sender` through CallFrom: [`0x82ff…a6e6`](https://explorer.testnet.arc.io/tx/0x82ff964d78bb507c9d967b6d69848965ce72230839b18a2a9f28c38d0182a6e6)
+- **Live on Arc mainnet** — first split of 0.1 USDC paid out 60/30/10 to all three recipients in one sub-second transaction: [`0x61a9…8592`](https://explorer.arc.io/tx/0x61a9b6770683406200ea793543a52c840237db5b53fb87aefea4b9f509a18592)
+- **Direct split** (testnet) — 3 recipients paid, 1 blocklisted recipient safely credited (not reverted): [`0x5b85…cdddb`](https://explorer.testnet.arc.io/tx/0x5b8527d1d399039b7509502df1b642461adc50b8ae384b7ce6fed0f5a03cdddb)
+- **Memo-wrapped split** (testnet) — on-chain memo emitted, caller preserved as `msg.sender` through CallFrom: [`0x82ff…a6e6`](https://explorer.testnet.arc.io/tx/0x82ff964d78bb507c9d967b6d69848965ce72230839b18a2a9f28c38d0182a6e6)
 
 49 unit tests passing, including fuzz tests and a fund-conservation invariant.
 
 ## Built with
 
-Designed, written, security-reviewed, tested and deployed with [Arc Studio](https://studio.arc.io).
+Designed, written, security-reviewed and tested with [Arc Studio](https://studio.arc.io); deployed to Arc mainnet with Foundry and source-verified on [explorer.arc.io](https://explorer.arc.io).
 
 ## Roadmap
 
