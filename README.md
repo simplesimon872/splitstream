@@ -1,21 +1,14 @@
 # SplitStream
 
-**An immutable, memo-tagged USDC revenue splitter on [Arc](https://arc.io).** Set the recipients and their shares *once* at deploy; after that, push any payment through and it's split instantly, every time — by a ratio nobody can change.
+**An immutable, memo-tagged USDC revenue splitter on [Arc](https://arc.io) — smart contract + web app.** Set the recipients and their shares *once* at deploy; after that, push any payment through and it's split instantly, every time, by a ratio nobody can change.
+
+This repo contains the Solidity contract (`SplitStream.sol`) and a static web app that drives it.
 
 ## What it is
 
 SplitStream is a smart contract on Arc (Circle's stablecoin L1) that splits incoming USDC among a **fixed** set of recipients by preset percentages. You deploy it once with your recipients and their basis-point shares. From then on, anyone can send USDC through it and each recipient receives their share in a single, sub-second transaction.
 
 The recipient list is **immutable** — no owner, no admin, no upgrade path. Every payee can verify on-chain that their share is locked and can never be quietly changed. The deployer gets no special power over the contract afterward.
-
-## How you use it
-
-1. **Deploy once** with `constructor(address[] recipients, uint16[] sharesBps)` — shares in basis points summing to **10,000**, up to **50** recipients. The last recipient receives any rounding dust.
-2. **Approve** the contract to spend your USDC (6-decimal units — **1 USDC = 1,000,000**).
-3. **Split** by calling `distribute(uint256 amount, string memo)` — it pulls `amount` and pays each recipient their share. Do this as often as you like; the split ratio is always the one locked at deploy.
-4. **Withdraw** — if a recipient couldn't be paid directly (see below), they call `withdraw()` to claim their balance.
-
-To use a *different* set of recipients, deploy another SplitStream — they're cheap, and you can run as many as you like (one per team, project, or payee set).
 
 ## Why it's built this way
 
@@ -28,7 +21,66 @@ To use a *different* set of recipients, deploy another SplitStream — they're c
 
 Payroll & wages · personal savings buckets · creator & royalty splits · co-founder profit sharing · agency & subcontractor payouts · affiliate / referral commissions · DAO contributor allocations · charity & tithing · marketplace fee routing · agent-to-agent settlement.
 
-## Interface
+Wherever a payee needs to *trust* that their share won't be changed — royalties, profit shares, partnerships — the fact that it *can't* be is a genuine feature.
+
+## Using the contract
+
+1. **Deploy once** with `constructor(address[] recipients, uint16[] sharesBps)` — shares in basis points summing to **10,000**, up to **50** recipients. The last recipient receives any rounding dust.
+2. **Approve** the contract to spend your USDC (6-decimal units — **1 USDC = 1,000,000**).
+3. **Split** by calling `distribute(uint256 amount, string memo)` — it pulls `amount` and pays each recipient their share. Do this as often as you like; the ratio is always the one locked at deploy.
+4. **Withdraw** — if a recipient couldn't be paid directly, they call `withdraw()` to claim their balance.
+
+To use a *different* set of recipients, deploy another SplitStream — they're cheap, and you can run as many as you like (one per team, project, or payee set).
+
+## The web app
+
+A static web app for a deployed SplitStream contract. It shows the recipients and their shares live from the contract, lets a connected wallet approve USDC and split an amount (optionally with an Arc on-chain memo), shows recent activity, and lets a recipient withdraw credited funds. There is **no backend** — the app talks to the Arc RPC and the user's browser wallet only.
+
+### Run & build
+
+Requires Node 20+ (or Bun).
+
+```bash
+npm install          # or: bun install
+npm run dev          # local dev server
+npm run build        # type-checks, then writes the static site to dist/
+npm run preview      # serve dist/ locally to check the production build
+```
+
+### Deploy
+
+Deploy the contents of `dist/` to any static host (Cloudflare Pages, Netlify, Vercel, GitHub Pages, S3). The build uses relative asset paths and has no client-side routes, so no rewrite rules are needed.
+
+**Cloudflare Pages:** connect this GitHub repo, set the build command to `npm run build` and the output directory to `dist`, and it rebuilds on every push.
+
+### Network & contract config (one place)
+
+Open `src/appConfig.ts`:
+
+```ts
+export const APP_CONFIG = {
+  chainId: 5042002,                                          // Arc Testnet. Arc mainnet is 5042
+  splitStream: '0x04ffda3829210d9314076f6a97a4d001d5424d55', // SplitStream on that network
+  deployBlock: 69295097,                                     // block the contract was deployed at
+}
+```
+
+The USDC and Memo addresses are identical on both networks, so they aren't configurable.
+
+To point at mainnet: change `chainId` to `5042`, set `splitStream` to your mainnet deployment, and set `deployBlock` to its deployment block (or `0` if unknown). **The testnet contract does not exist on mainnet — you must deploy SplitStream there first, with the real recipients.** Recipients and shares are fixed at deploy.
+
+The same three values can instead be supplied at build time (see `.env.example`): `VITE_CHAIN_ID`, `VITE_SPLITSTREAM_ADDRESS`, `VITE_DEPLOY_BLOCK`. When set, they override `appConfig.ts`. These are public values — **never put secrets in `VITE_` variables; they are bundled into the site.**
+
+### App notes
+
+- Amounts are USDC in 6-decimal base units (1 USDC = 1,000,000). You type human USDC; the app converts.
+- Approvals cover exactly the amount you enter, not an unlimited allowance.
+- "Split with on-chain memo" goes through Arc's Memo contract. It needs a regular (EOA) wallet; smart-contract wallets are not supported by Memo.
+- If a recipient is blocklisted by USDC, their share is credited to the contract instead of sent, and only that address can withdraw it. The app flags such recipients.
+- The activity feed reads logs straight from public Arc RPC endpoints, in small block windows, and never scans before `deployBlock`. Public endpoints can rate-limit; the app retries and falls back to other endpoints.
+- Wallets: browser-injected wallets only. WalletConnect is not configured, so no project ID is needed.
+
+## Contract interface
 
 **Functions:** `distribute(uint256 amount, string memo)` · `withdraw()` · `getRecipients() → (address[], uint16[])` · `recipientCount()` · `claimable(address)` · `totalClaimable()` · `USDC()`
 
